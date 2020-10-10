@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>聊天室</title>
+  <link rel="stylesheet" href="./index.css">
+
+  <!--the css for jquery.mCustomScrollbar-->
+  <link rel="stylesheet" href="emoji/lib/css/jquery.mCustomScrollbar.min.css" />
+  <!--the css for this plugin-->
+  <link rel="stylesheet" href="emoji/src/css/jquery.emoji.css" />
+  <script src="https://cdn.bootcdn.net/ajax/libs/jquery/1.10.0/jquery.js"></script>
+</head>
+
+<body>
+  <div class="mask">
+    <div class="login">
+      <div class="top">用户登录</div>
+      <div class="bottom">
+        <span>用户名</span>
+        <input type="text">
+        <span>选择头像</span>
+        <ul>
+          <li><img src="http://qhtwg8x46.hb-bkt.clouddn.com/1.png" alt="avatar"></li>
+          <li><img src="http://qhtwg8x46.hb-bkt.clouddn.com/2.png" alt="avatar"></li>
+          <li><img src="http://qhtwg8x46.hb-bkt.clouddn.com/3.png" alt="avatar"></li>
+          <li><img src="http://qhtwg8x46.hb-bkt.clouddn.com/4.png" alt="avatar"></li>
+          <li><img src="http://qhtwg8x46.hb-bkt.clouddn.com/5.png" alt="avatar"></li>
+          <li><img src="http://qhtwg8x46.hb-bkt.clouddn.com/6.png" alt="avatar"></li>
+          <li><img src="http://qhtwg8x46.hb-bkt.clouddn.com/7.png" alt="avatar"></li>
+          <li><img src="http://qhtwg8x46.hb-bkt.clouddn.com/8.png" alt="avatar"></li>
+          <li><img src="http://qhtwg8x46.hb-bkt.clouddn.com/9.png" alt="avatar"></li>
+          <li><img src="http://qhtwg8x46.hb-bkt.clouddn.com/10.png" alt="avatar"></li>
+        </ul>
+
+      </div>
+      <div class="button">登录</div>
+    </div>
+  </div>
+  <div class="con">
+    <div class="left">
+      <div class="user">
+        <img src="http://qhtwg8x46.hb-bkt.clouddn.com/1.png" alt="avatar">
+        <span>12321</span>
+      </div>
+      <div class="user_list">
+        <span class="user_list_span">用户列表</span>
+        <ul class="ul">
+
+        </ul>
+      </div>
+    </div>
+    <div class="right">
+      <div class="header">聊天室(99)</div>
+      <div class="chat">
+      </div>
+      <div class="send">
+        <div>
+          <span id='init'></span>
+          <span></span>
+          <label for="file"><input onchange="upload()" style="display: none;" type="file" name="file" id='file'
+              accept="image/*"></label>
+        </div>
+        <div>
+          <div id='content' contenteditable></div>
+        </div>
+        <div>
+          <span>按ctrl+Enter发送</span>
+          <button>发送</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!--(Optional) the js for jquery.mCustomScrollbar's addon-->
+  <script src="emoji/lib/script/jquery.mousewheel-3.0.6.min.js"></script>
+  <!--the js for jquery.mCustomScrollbar-->
+  <script src="emoji/lib/script/jquery.mCustomScrollbar.min.js"></script>
+  <!--the js for this plugin-->
+  <script src="emoji/src/js/jquery.emoji.js"></script>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    var socket = io();
+    const mask = document.querySelector('.mask')
+    const btn = document.querySelector('.button')
+    const imgs = document.querySelectorAll(".mask img")
+    const lis = document.querySelectorAll(" .mask li")
+    const ipt = document.querySelector('input')
+    const ul = document.querySelector(".ul")
+    const header = document.querySelector(".header")
+    const chat = document.querySelector('.chat')
+    const img = document.querySelector('.user img')
+    const span = document.querySelector(".user span")
+    const file = document.querySelector("#file")
+
+    let user = {}
+    mask.addEventListener('click', function (e) {
+      e.stopPropagation()
+
+    })
+    imgs.forEach(item => {
+      item.addEventListener('click', (e) => {
+        user.avatar = e.target.getAttribute('src')
+        lis.forEach(item => {
+          item.style.border = 'none'
+        })
+        e.target.parentNode.style.border = '1px solid red'
+
+      })
+    })
+    ipt.addEventListener('change', () => {
+      user.name = ipt.value
+    })
+    btn.addEventListener('click', () => {
+      if (!user.name) {
+        return window.alert('请输入用户名')
+      }
+      if (!user.avatar) {
+        return window.alert('请输入头像')
+      }
+
+      socket.emit('login', user)
+      //  判断用户名是否已经存在
+      socket.on('login', e => {
+        if (e.code === 1) {
+          window.alert('用户名已存在')
+        } else {
+          mask.style.display = 'none'
+        }
+      })
+
+    })
+    //  接收用户列表信息
+    socket.on('userList', data => {
+      const chatDiv = document.createElement("div")
+      chatDiv.className = 'msg_system'
+      chatDiv.innerHTML = `${user.name} 进入了聊天室`
+      chat.appendChild(chatDiv)
+      chatDiv.scrollIntoView(false)
+      img.src = user.avatar
+      span.innerHTML = user.name
+
+      if (data.users.length === 0) {
+        header.innerHTML = '聊天室(1)'
+        return
+      } else {
+        ul.innerHTML = ''
+        const user_list = data.users.reduce((pre, cur) => {
+          if (cur.name === user.name) {
+            return pre
+          }
+          return pre.concat(cur)
+        }, [])
+        header.innerHTML = `聊天室(${user_list.length + 1})`
+        user_list.forEach(item => {
+          const li = document.createElement("li")
+          const div = document.createElement("div")
+          const img = document.createElement("img")
+          const span = document.createElement("span")
+          span.innerHTML = item.name
+          img.src = item.avatar
+          img.alt = 'avatar'
+          div.className = 'item'
+          div.appendChild(img)
+          div.appendChild(span)
+          li.appendChild(div)
+          ul.appendChild(li)
+        })
+
+      }
+    })
+    socket.on('disconnect', data => {
+      //  更新页面
+      const chatDiv = document.createElement("div")
+      chatDiv.className = 'msg_system'
+      chatDiv.innerHTML = `${data.self} 离开了聊天室`
+      chat.appendChild(chatDiv)
+      chatDiv.scrollIntoView(false)
+
+      ul.innerHTML = ''
+      header.innerHTML = `聊天室(${data.newList.length})`
+      const arr = data.newList.reduce((pre, cur) => {
+        if (cur.name === user.name) {
+          return pre
+        }
+        return pre.concat(cur)
+      }, [])
+      arr.forEach(item => {
+        const li = document.createElement("li")
+        const div = document.createElement("div")
+        const img = document.createElement("img")
+        const span = document.createElement("span")
+        span.innerHTML = item.name
+        img.src = item.avatar
+        img.alt = 'avatar'
+        div.className = 'item'
+        div.appendChild(img)
+        div.appendChild(span)
+        li.appendChild(div)
+        ul.appendChild(li)
+      })
+    })
+    //  进行聊天
+    socket.on('chat', data => {
+      if (data.user.name === user.name) {
+        const divS = document.createElement("div")
+        const spanS = document.createElement("span")
+        const imgS = document.createElement("img")
+
+        if (data.type === 'text') {
+          spanS.innerHTML = data.con
+        } else {
+          const ff = document.createElement("img")
+          ff.src = data.con
+          ff.className = 'active'
+          spanS.appendChild(ff)
+        }
+        imgS.src = data.user.avatar
+        divS.className = 'msg_self'
+        divS.appendChild(spanS)
+        divS.appendChild(imgS)
+        chat.appendChild(divS)
+        divS.scrollIntoView(false)
+      } else {
+        const span3 = document.createElement("span")
+        const span31 = document.createElement("span")
+        span3.innerHTML = data.user.name
+
+
+        if (data.type === 'text') {
+          span31.innerHTML = data.con
+        } else {
+          const ff = document.createElement("img")
+          ff.src = data.con
+          ff.className = 'active'
+          span31.appendChild(ff)
+        }
+
+        const div3 = document.createElement("div")
+        div3.appendChild(span3)
+        div3.appendChild(span31)
+        const img3 = document.createElement("img")
+        img3.src = data.user.avatar
+        const div33 = document.createElement("div")
+        div33.className = "msg_others"
+        div33.appendChild(img3)
+        div33.appendChild(div3)
+
+        chat.appendChild(div33)
+        div33.scrollIntoView(false)
+      }
+    })
+    //  发送聊天内容
+    const submit = document.querySelector("button")
+    const textArea = document.querySelector("#content")
+    submit.addEventListener("click", () => {
+      if (textArea.innerHTML === '') {
+        return alert("内容不能为空")
+      } else {
+        socket.emit("chat", { user, con: textArea.innerHTML, type: 'text' })
+        textArea.innerHTML = ''
+      }
+    })
+    //  发送图片内容
+    function upload() {
+      const fr = new FileReader()
+      fr.readAsDataURL(file.files[0])
+      fr.onload = (e) => {
+
+        socket.emit("chat", { user, con: e.target.result, type: 'image' })
+        file.value = ''
+      }
+    }
+    //  初始化表情
+    $('#init').click(() => {
+      $("#content").emoji({
+        button: "#init",
+        showTab: false,
+        animation: 'fade',
+        icons: [{
+          name: "QQ表情",
+          path: "emoji/dist/img/qq/",
+          maxNum: 91,
+          excludeNums: [41, 45, 54],
+          file: ".gif"
+        }]
+      });
+    })
+  </script>
+
+</body>
+
+</html>
